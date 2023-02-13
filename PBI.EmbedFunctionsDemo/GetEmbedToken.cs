@@ -30,22 +30,37 @@ namespace PBI.EmbedFunctionsDemo
         {
             const string accountViewerRole = "Account Viewer";
 
-            var pbiClient = await GetPbiClient();
-            var pbiReport = await pbiClient.Reports.GetReportInGroupAsync(workspaceId, reportId);
+            try
+            {
+                var pbiClient = await GetPbiClient();
+                var pbiReport = await pbiClient.Reports.GetReportInGroupAsync(workspaceId, reportId);
 
-            var rlsIdentity = new EffectiveIdentity(accountId,
-                datasets: new List<string> { pbiReport.DatasetId },  
-                roles: new List<string> { accountViewerRole });
+                var rlsIdentity = new EffectiveIdentity(accountId,
+                    datasets: new List<string> { pbiReport.DatasetId },
+                    roles: new List<string> { accountViewerRole });
 
-            var embedTokenRequest = new GenerateTokenRequestV2(
-                datasets: new List<GenerateTokenRequestV2Dataset> { new GenerateTokenRequestV2Dataset(pbiReport.DatasetId) },
-                reports: new List<GenerateTokenRequestV2Report> { new GenerateTokenRequestV2Report(pbiReport.Id) },
-                targetWorkspaces: new List<GenerateTokenRequestV2TargetWorkspace> { new GenerateTokenRequestV2TargetWorkspace(workspaceId) },
-                identities: new List<EffectiveIdentity> { rlsIdentity });
+                var embedTokenRequest = new GenerateTokenRequestV2(
+                    datasets: new List<GenerateTokenRequestV2Dataset> { new GenerateTokenRequestV2Dataset(pbiReport.DatasetId) },
+                    reports: new List<GenerateTokenRequestV2Report> { new GenerateTokenRequestV2Report(pbiReport.Id) },
+                    targetWorkspaces: new List<GenerateTokenRequestV2TargetWorkspace> { new GenerateTokenRequestV2TargetWorkspace(workspaceId) },
+                    identities: new List<EffectiveIdentity> { rlsIdentity });
 
-            var embedToken = await pbiClient.EmbedToken.GenerateTokenAsync(embedTokenRequest);
+                var embedToken = await pbiClient.EmbedToken.GenerateTokenAsync(embedTokenRequest);
 
-            return new OkObjectResult(embedToken);
+                log.LogInformation(
+                    $"Embed token succesfully generated for workspace [{workspaceId}] " +
+                    $"report [{reportId}] account [{accountId}] [{accountViewerRole}].");
+
+                return new OkObjectResult(embedToken);
+            }
+            catch (Exception ex)
+            {
+                log.LogError(
+                    $"An error occurred while trying to obtain an embed token for worksapce [{workspaceId}] " +
+                    $"report [{reportId}] account [{accountId}] [{accountViewerRole}]: [{ex.Message}].");
+
+                return new StatusCodeResult(StatusCodes.Status500InternalServerError);
+            }
         }
 
         private static async Task<PowerBIClient> GetPbiClient()

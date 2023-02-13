@@ -16,7 +16,15 @@ namespace PBI.EmbedFunctionsDemo
 {
     public static class GetEmbedToken
     {
-        public static class EnvironmentVariables
+        // This role needs to be defined on the applicable Power BI dataset.
+        // Learn more at https://learn.microsoft.com/power-bi/enterprise/service-admin-rls#define-roles-and-rules-in-power-bi-desktop.
+
+        public const string AccountViewerRole = "Account Viewer";
+
+        // These environment variables are required to authenticate to Azure Active Directory and obtain a bearer token to call the Power BI REST API.
+        // Learn more at https://learn.microsoft.com/power-bi/developer/embedded/register-app?tabs=customers.
+
+        public static class EnvironmentVariableNames
         {
             public const string AadClientId = "AadClientId";
             public const string AadTenantId = "AadTenantId";
@@ -28,8 +36,6 @@ namespace PBI.EmbedFunctionsDemo
             [HttpTrigger(AuthorizationLevel.Function, "get", Route = "pbi/token/{workspaceId}/{reportId}/{accountId}")] HttpRequest req,
             Guid workspaceId, Guid reportId, string accountId, ILogger log)
         {
-            const string accountViewerRole = "Account Viewer";
-
             try
             {
                 var pbiClient = await GetPbiClient();
@@ -37,7 +43,7 @@ namespace PBI.EmbedFunctionsDemo
 
                 var rlsIdentity = new EffectiveIdentity(accountId,
                     datasets: new List<string> { pbiReport.DatasetId },
-                    roles: new List<string> { accountViewerRole });
+                    roles: new List<string> { AccountViewerRole });
 
                 var embedTokenRequest = new GenerateTokenRequestV2(
                     datasets: new List<GenerateTokenRequestV2Dataset> { new GenerateTokenRequestV2Dataset(pbiReport.DatasetId) },
@@ -49,7 +55,7 @@ namespace PBI.EmbedFunctionsDemo
 
                 log.LogInformation(
                     $"Embed token succesfully generated for workspace [{workspaceId}] " +
-                    $"report [{reportId}] account [{accountId}] [{accountViewerRole}].");
+                    $"report [{reportId}] account [{accountId}] [{AccountViewerRole}].");
 
                 return new OkObjectResult(embedToken);
             }
@@ -57,7 +63,7 @@ namespace PBI.EmbedFunctionsDemo
             {
                 log.LogError(
                     $"An error occurred while trying to obtain an embed token for worksapce [{workspaceId}] " +
-                    $"report [{reportId}] account [{accountId}] [{accountViewerRole}]: [{ex.Message}].");
+                    $"report [{reportId}] account [{accountId}] [{AccountViewerRole}]: [{ex.Message}].");
 
                 return new StatusCodeResult(StatusCodes.Status500InternalServerError);
             }
@@ -69,18 +75,19 @@ namespace PBI.EmbedFunctionsDemo
 
             return new PowerBIClient(new TokenCredentials(pbiApiBearerToken, "Bearer"));
         }
+
         private static async Task<string> GetPbiApiBearerToken()
         {
             const string pbiApiScope = "https://analysis.windows.net/powerbi/api/.default";
 
-            var aadClientId = GetEnvironmentVariable(EnvironmentVariables.AadClientId)
-                ?? throw new InvalidOperationException($"[{EnvironmentVariables.AadClientId}] not configured.");
+            var aadClientId = GetEnvironmentVariable(EnvironmentVariableNames.AadClientId)
+                ?? throw new InvalidOperationException($"[{EnvironmentVariableNames.AadClientId}] not configured.");
 
-            var aadTenantId = GetEnvironmentVariable(EnvironmentVariables.AadTenantId)
-                ?? throw new InvalidOperationException($"[{EnvironmentVariables.AadTenantId}] not configured.");
+            var aadTenantId = GetEnvironmentVariable(EnvironmentVariableNames.AadTenantId)
+                ?? throw new InvalidOperationException($"[{EnvironmentVariableNames.AadTenantId}] not configured.");
 
-            var aadClientSecret = GetEnvironmentVariable(EnvironmentVariables.AadClientSecret)
-                ?? throw new InvalidOperationException($"[{EnvironmentVariables.AadClientSecret}] not configured.");
+            var aadClientSecret = GetEnvironmentVariable(EnvironmentVariableNames.AadClientSecret)
+                ?? throw new InvalidOperationException($"[{EnvironmentVariableNames.AadClientSecret}] not configured.");
 
             var aadAuthority = $"https://login.microsoftonline.com/{aadTenantId}/";
 

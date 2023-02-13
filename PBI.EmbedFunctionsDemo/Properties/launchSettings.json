@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "PBI.EmbedFunctionsDemo": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7191",
+      "launchBrowser": false
+    }
+  }
+}
